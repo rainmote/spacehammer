@@ -104,7 +104,7 @@
 ;; If you would like to customize this we recommend copying this file to
 ;; ~/.hammerspoon/private/config.fnl. That will be used in place of the default
 ;; and will not be overwritten by upstream changes when spacehammer is updated.
-(local music-app "Spotify")
+(local music-app "NeteaseMusic")
 
 (local return
        {:key :space
@@ -262,6 +262,9 @@
         {:key :s
          :title "Slack"
          :action (activator "Slack")}
+        {:key :d
+         :title "DingDing"
+         :action (activator "DingTalk")}
         {:key :b
          :title "Brave"
          :action (activator "Brave")}
@@ -333,7 +336,7 @@
          :items emacs-bindings}])
 
 (local common-keys
-       [{:mods [:alt]
+       [{:mods [:cmd]
          :key :space
          :action "lib.modal:activate-modal"}
         {:mods [:alt]
