@@ -198,3 +198,5 @@ Returns nil. This function causes side-effects.
                     (let [module (require path)]
                       {path (module.init config)})))
              (reduce #(merge $1 $2) {})))
+
+(local clipboard (require :clipboard))
