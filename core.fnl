@@ -192,6 +192,10 @@ Returns nil. This function causes side-effects.
 
 ;; Create a global reference so services like hs.application.watcher
 ;; do not get garbage collected.
+
+;;(local clipboard (require :clipboard))
+;;(local working (require :working))
+
 (global resources
         (->> modules
              (map (fn [path]
@@ -199,4 +203,4 @@ Returns nil. This function causes side-effects.
                       {path (module.init config)})))
              (reduce #(merge $1 $2) {})))
 
-(local clipboard (require :clipboard))
+

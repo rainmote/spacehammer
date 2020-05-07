@@ -16,8 +16,8 @@
 
 (local log (hs.logger.new "\tclipboard.fnl\t" "debug"))
 
-(local width 30)
-(local max-size 50)
+(local width 50)
+(local max-size 30)
 
 (local store-path (.. (os.getenv "HOME") "/.clipboard"))
 (local cache-path (.. store-path "/cache.json"))
@@ -39,14 +39,16 @@
         (let [c (: file :read "*l")]
             (: file :close)
             (when c
-                (log.d c)
+                ;;(log.d c)
                 (hs.json.decode c)))))
 
+(global clipboard-history (or (read-history-from-cache) {}))
+
 (fn save-history-into-cache
-    [history]
+    [clipboard-history]
     (if-let [file (io.open cache-path "w")]
-        (let [s (hs.json.encode history)]
-            (log.d "encode: " s)
+        (let [s (hs.json.encode clipboard-history)]
+            ;;(log.d "encode: " s)
             (: file :write s)
             (: file :close))))
 
@@ -65,8 +67,8 @@
 
 (fn reduce-history-size
     []
-    (while (> (length history) max-size)
-        (table.remove history (length history))))
+    (while (> (length clipboard-history) max-size)
+        (table.remove clipboard-history (length clipboard-history))))
 
 (fn get-uti-item
     [uti]
@@ -93,44 +95,25 @@
                      (map get-uti-item)
                      (filter #(~= (_G.next $1) nil)))
           item (. items 1)]
-        (each [index v (ipairs items)]
-            (log.df "index: %d, v: %s" index v))
+        ;;(each [index v (ipairs items)]
+        ;;    (log.df "index: %d, v: %s" index v))
         (if (. item :text)
             (do
                
-                (each [index el (ipairs history)]
+                (each [index el (ipairs clipboard-history)]
                     (if (= (. item :content)
                            (. el :content))
-                        (table.remove history index)))
-                
-                (var app (: (hs.window.focusedWindow) :application))
+                        (table.remove clipboard-history index)))
                 (tset item :sub-text
-                    (.. (: app :name)
+                    (.. ;;(. (hs.window.focusedWindow) :application :name)
                         " / "
                         (os.date "%Y-%m-%d %H:%M:%S" (os.time))))
-                (log.d "item sub-text:" (. item :sub-text))
-                (table.insert history 1 item)
-                (each [index v (ipairs history)]
-                    (log.df "history index: %d, v: %s" index v))
-                (save-history-into-cache history)))))
+                ;;(log.d "item sub-text:" (. item :sub-text))
+                (table.insert clipboard-history 1 item)
+                ;;(each [index v (ipairs clipboard-history)]
+                ;;    (log.df "history index: %d, v: %s" index v))
+                (save-history-into-cache clipboard-history)))))
 
-(fn show-clipboard
-    []
-    (log.d "history:" history)
-    (each [index v (ipairs history)]
-        (log.df "history index: %d, v: %s" index v))
-    (let [map-fn
-          (fn [item]
-            (let [choice (hs.fnutils.copy item)]
-                (tset choice :text (.. " " item.text))
-                (tset choice :sub-text (.. " " item.sub-text))
-                (when (= item.type HISTORY_TYPE.IMAGE)
-                    (tset choice :image (hs.image.imageFromPath item.content)))
-                choice))
-          choices (map map-fn history)]
-        (: _G.chooser :width width)
-        (: _G.chooser :choices choices)
-        (: _G.chooser :show)))
 
 
 (fn choice-clipboard
@@ -144,13 +127,30 @@
     (when (~= "" (: _G.chooser :query))
         (: _G.chooser :query "")))
 
-(global history (or (read-history-from-cache) {}))
+(global cli-chooser (hs.chooser.new choice-clipboard))
 
-(global chooser (hs.chooser.new choice-clipboard))
+(fn show-clipboard
+    []
+    ;;(log.d "history:" clipboard-history)
+    ;;(each [index v (ipairs clipboard-history)]
+    ;;    (log.df "history index: %d, v: %s" index v))
+    (let [map-fn
+          (fn [item]
+            (let [choice (hs.fnutils.copy item)]
+                (tset choice :text (.. " " item.text))
+                (tset choice :sub-text (.. " " item.sub-text))
+                (when (= item.type HISTORY_TYPE.IMAGE)
+                    (tset choice :image (hs.image.imageFromPath item.content)))
+                choice))
+          choices (map map-fn clipboard-history)]
+        (: cli-chooser :width width)
+        (: cli-chooser :bgDark false)
+        (: cli-chooser :choices choices)
+        (: cli-chooser :show)))
 
 (var pre-change-count (hs.pasteboard.changeCount))
 
-(global watcher
+(global clipboard-watcher
     (hs.timer.new
         0.5
         (fn []
@@ -160,6 +160,6 @@
                     (pcall add-history-from-pasteboard)
                     (set pre-change-count change-count))))))
 
-(: watcher :start)
+(: clipboard-watcher :start)
 
 (hs.hotkey.bind ["cmd" "shift"] "v" show-clipboard)
