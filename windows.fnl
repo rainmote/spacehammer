@@ -1,6 +1,27 @@
-(local {:filter filter
-        :get-in get-in} (require :lib.functional))
+;; Copyright (c) 2017-2020 Ag Ibragimov & Contributors
+;;
+;;; Author: Ag Ibragimov <agzam.ibragimov@gmail.com>
+;;
+;;; Contributors:
+;;   Jay Zawrotny <jayzawrotny@gmail.com>
+;;
+;;; URL: https://github.com/agzam/spacehammer
+;;
+;;; License: MIT
+;;
+
+(local {:filter    filter
+        :get-in    get-in
+        :count     count
+        :concat    concat
+        :contains? contains?
+        :map       map
+        :for-each  for-each} (require :lib.functional))
 (local {:global-filter global-filter} (require :lib.utils))
+(local {:atom   atom
+        :deref  deref
+        :swap!  swap!
+        :reset! reset!} (require :lib.atom))
 
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -78,7 +99,6 @@
     (: win :centerOnScreen))
   (highlight-active-window))
 
-
 (fn activate-app
   [app-name]
   (hs.application.launchOrFocus app-name)
@@ -108,7 +128,6 @@
       (: :getWindows hs.window.filter.sortByFocusedLast)
       (. 2)
       (: :focus)))
-
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Jumping Windows
@@ -306,8 +325,14 @@
 
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;; Move to screen
+;; Move to screen directions
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+(fn move-to-screen
+  [screen]
+  "Moves current window onto given hs.screen instance"
+  (let [w (hs.window.focusedWindow)]
+    (: w :moveToScreen screen)))
 
 (fn move-screen
   [method]
@@ -339,6 +364,121 @@
   []
   (move-screen :moveOneScreenWest))
 
+(local canvas (require :hs.canvas))
+(local screen-number-canvases (atom []))
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;; Move to screen by number
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+(fn show-display-number
+  [idx screen]
+  "Shows a big number at the corner of hs.screen.
+   To be used as for multi-monitor setups, to easily identify index of each
+   screen."
+  (let [cs        (canvas.new {})
+        font-size (/ (. (: screen :frame) :w) 10)]
+    (swap! screen-number-canvases (fn [t] (concat t [cs])))
+    (doto cs
+      (: :frame (: screen :frame))
+      (: :appendElements
+         [{:action     :fill
+           :type       :text
+           :frame      {:x "0.93" :y 0 :h "1" :w "1"}
+           :text       (hs.styledtext.new
+                        idx
+                        {:font  {:size font-size}
+                         :color {:red 1 :green 0.5 :blue 0 :alpha 1}})
+           :withShadow true}])
+      (: :show))))
+
+(fn show-display-numbers
+  [screens]
+  "Shows big number at the corner of each screen.
+   To be used as for multi-monitor setups, to easily identify index of each screen."
+  (let [ss (hs.screen.allScreens)]
+    (when (< 1 (count ss))
+      (each [idx display (ipairs (hs.screen.allScreens))]
+        (show-display-number idx display)))))
+
+(fn hide-display-numbers
+  []
+  "Hides big numbers at the corner of each screen that are used for guidance in
+   multi-monitor setups."
+  (for-each
+   (fn [c] (: c :delete .4))
+   (deref screen-number-canvases))
+  (reset! screen-number-canvases []))
+
+(fn monitor-item
+  [screen i]
+  "
+  Creates a menu item to move the frontMost window to the specified screen index
+  Takes a hs.screen instance and an index integer
+  Returns a table-map to add to a config.fnl modal menu
+  "
+  {:title (.. "Monitor " i)
+   :key (tostring i)
+   :group :monitor
+   :action (fn []
+             (when screen
+               (move-to-screen screen)))})
+
+(fn remove-monitor-items
+  [menu]
+  "
+  Removes the monitor items from a menu
+  Takes a menu table-map
+  Mutates the menu object to remove items with :group :monitor flags
+  Returns mutated table-map
+  "
+  (->> menu.items
+       (filter #(not (= (. $ :group) :monitor)))
+       (tset menu :items))
+  menu)
+
+(fn add-monitor-items
+  [menu screens]
+  "
+  Update a menu by adding an item for each connected monitor
+  Takes a menu table-map and a table-list of hs.screens
+  Mutates the menu.items by adding items for each monitor
+  Returns mutated modal menu table-map
+  "
+  (->> screens
+       (map monitor-item)
+       (concat menu.items)
+       (tset menu :items))
+  menu)
+
+(fn enter-window-menu
+  [menu]
+  "
+  Handler that can be used when entering the windows menu
+  Takes modal menu table-map
+  - Hides any previous display numbers
+  - Shows display numbers at top right of each screen
+  - Removes previous monitor items if any were added
+  - Adds monitor items based on currently connected monitors
+  Returns mutated modal menu table-map for threading or chaining
+  "
+  (let [screens (hs.screen.allScreens)]
+    (hide-display-numbers)
+    (show-display-numbers screens)
+    (remove-monitor-items menu)
+    (add-monitor-items menu screens))
+  menu)
+
+(fn exit-window-menu
+  [menu]
+  "
+  Handler that can be used when exiting the windows menu
+  - Removes previous monitor items if any were added
+  Returns mutated modal menu table-map for threading or chaining
+  "
+  (hide-display-numbers)
+  menu)
+
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Initialization
@@ -360,34 +500,39 @@
 ;; Exports
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-{:init                    init
- :activate-app            activate-app
+{:activate-app            activate-app
  :center-window-frame     center-window-frame
+ :enter-window-menu       enter-window-menu
+ :exit-window-menu        exit-window-menu
+ :hide-display-numbers    hide-display-numbers
  :highlight-active-window highlight-active-window
+ :init                    init
  :jump                    jump
  :jump-to-last-window     jump-to-last-window
- :jump-window-left        jump-window-left
  :jump-window-above       jump-window-above
  :jump-window-below       jump-window-below
+ :jump-window-left        jump-window-left
  :jump-window-right       jump-window-right
  :maximize-window-frame   maximize-window-frame
  :move-east               move-east
  :move-north              move-north
  :move-south              move-south
+ :move-to-screen          move-to-screen
  :move-west               move-west
  :rect                    rect
+ :resize-down             resize-down
  :resize-half-bottom      resize-half-bottom
  :resize-half-left        resize-half-left
  :resize-half-right       resize-half-right
  :resize-half-top         resize-half-top
- :resize-inc-left         resize-inc-left
  :resize-inc-bottom       resize-inc-bottom
- :resize-inc-top          resize-inc-top
+ :resize-inc-left         resize-inc-left
  :resize-inc-right        resize-inc-right
+ :resize-inc-top          resize-inc-top
  :resize-left             resize-left
- :resize-up               resize-up
- :resize-down             resize-down
  :resize-right            resize-right
+ :resize-up               resize-up
  :set-mouse-cursor-at     set-mouse-cursor-at
+ :show-display-numbers    show-display-numbers
  :show-grid               show-grid
  :undo-action             undo}

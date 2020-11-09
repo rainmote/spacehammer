@@ -1,3 +1,12 @@
+;; Copyright (c) 2017-2020 Ag Ibragimov & Contributors
+;;
+;;; Author: Jay Zawrotny <jayzawrotny@gmail.com>
+;;
+;;; URL: https://github.com/agzam/spacehammer
+;;
+;;; License: MIT
+;;
+
 (local fu hs.fnutils)
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -9,6 +18,17 @@
   "Execute function if it is not nil."
   (when (and f (= (type f) :function))
     (f)))
+
+(fn compose
+  [...]
+  (let [fs [...]
+        total (length fs)]
+    (fn [v]
+      (var res v)
+      (for [i 0 (- total 1)]
+        (let [f (. fs (- total i))]
+          (set res (f res))))
+      res)))
 
 (fn contains?
   [x xs]
@@ -52,6 +72,13 @@
   []
   nil)
 
+(fn range
+  [start end]
+  (let [t []]
+    (for [i start end]
+      (table.insert t i))
+    t))
+
 (fn slice-end-idx
   [end-pos list]
   (if (< end-pos 0)
@@ -89,6 +116,15 @@
   (f x (table.unpack [...]))
   x)
 
+(fn count
+  [tbl]
+  "Returns number of elements in a table"
+  (var ct 0)
+  (fu.each
+   tbl
+   (fn []
+     (set ct (+ ct 1))))
+  ct)
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Reduce Primitives
@@ -194,8 +230,10 @@
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 {:call-when call-when
+ :compose   compose
  :concat    concat
  :contains? contains?
+ :count     count
  :eq?       eq?
  :filter    filter
  :find      find

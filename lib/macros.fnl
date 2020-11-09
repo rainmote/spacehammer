@@ -1,3 +1,12 @@
+;; Copyright (c) 2017-2020 Ag Ibragimov & Contributors
+;;
+;;; Author: Jay Zawrotny <jayzawrotny@gmail.com>
+;;
+;;; URL: https://github.com/agzam/spacehammer
+;;
+;;; License: MIT
+;;
+
 (fn when-let
   [[var-name value] body1 ...]
   "
@@ -36,5 +45,29 @@
        ,body1
        ,...)))
 
+(fn time
+  [body1 ...]
+  "
+  Macro to time the execution of code
+  Takes multiple body forms
+  - Evaluates the results once
+  - Prints the time in seconds
+  Returns the evaluation result
+
+  Example:
+  (time (add-monitor-items menu))
+  ;; =>
+  \"Executed in 3.44445559689e-05 seconds\"
+  menu
+  "
+  (assert body1 "expected body")
+  `(let [start# (os.clock)
+         results# (do ,body1 ,...)
+         end# (os.clock)
+         diff# (- end# start#)]
+     (print "Executed in" diff# " seconds.")
+     results#))
+
 {:when-let when-let
- :if-let if-let}
+ :if-let if-let
+ :time time}

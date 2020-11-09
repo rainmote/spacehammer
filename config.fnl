@@ -1,3 +1,16 @@
+;; Copyright (c) 2017-2020 Ag Ibragimov & Contributors
+;;
+;;; Author: Ag Ibragimov <agzam.ibragimov@gmail.com>
+;;
+;;; Contributors:
+;;   Jay Zawrotny <jayzawrotny@gmail.com>
+;;
+;;; URL: https://github.com/agzam/spacehammer
+;;
+;;; License: MIT
+;;
+
+
 (require-macros :lib.macros)
 (local windows (require :windows))
 (local emacs (require :emacs))
@@ -57,15 +70,14 @@
 ;; [x] |-- f - fullscreen
 ;; [x] |-- v - split
 ;;
-;; [x] cmd-n - next-app
-;; [x] cmd-p - prev-app
+;; [x] alt-n - next-app
+;; [x] alt-p - prev-app
 
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Initialize
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-(emacs.enable-edit-with-emacs)
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Actions
@@ -93,8 +105,8 @@
   Change the keybinding in the common keys section of this config file.
   "
   (if-let [console (hs.console.hswindow)]
-   (hs.closeConsole)
-   (hs.openConsole)))
+          (hs.closeConsole)
+          (hs.openConsole)))
 
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -102,7 +114,7 @@
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 ;; If you would like to customize this we recommend copying this file to
-;; ~/.hammerspoon/private/config.fnl. That will be used in place of the default
+;; ~/.spacehammer/config.fnl. That will be used in place of the default
 ;; and will not be overwritten by upstream changes when spacehammer is updated.
 (local music-app "NeteaseMusic")
 
@@ -240,7 +252,6 @@
           :title "Undo"
           :action "windows:undo-action"}]))
 
-
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Apps Menu
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -310,28 +321,29 @@
          :title "Full Screen"
          :action "emacs:full-screen"}])
 
-
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Main Menu & Config
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 (local menu-items
-       [{:key :space
-         :title "Alfred"
+       [{:key    :space
+         :title  "Alfred"
          :action (activator "Alfred 4")}
-        {:key :w
+        {:key   :w
          :title "Window"
+         :enter "windows:enter-window-menu"
+         :exit "windows:exit-window-menu"
          :items window-bindings}
-        {:key :a
+        {:key   :a
          :title "Apps"
          :items app-bindings}
-        {:key :j
-         :title "Jump"
+        {:key    :j
+         :title  "Jump"
          :action "windows:jump"}
-        {:key :m
+        {:key   :m
          :title "Media"
          :items media-bindings}
-        {:key :x
+        {:key   :x
          :title "Emacs"
          :items emacs-bindings}])
 
@@ -347,8 +359,10 @@
          :action "apps:prev-app"}
         {:mods [:cmd :ctrl]
          :key "`"
-         :action toggle-console}])
-
+         :action toggle-console}
+        {:mods [:cmd :ctrl]
+         :key :o
+         :action "emacs:edit-with-emacs"}])
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; App Specific Config
@@ -391,12 +405,8 @@
 
 (local emacs-config
        {:key "Emacs"
-        :activate (fn []
-                    (vim.disable)
-                    (emacs.disable-edit-with-emacs))
-        :deactivate (fn []
-                      (vim.enable)
-                      (emacs.enable-edit-with-emacs))
+        :activate (fn [] (vim.disable))
+        :deactivate (fn [] (vim.enable))
         :launch "emacs:maximize"
         :items []
         :keys []})
@@ -483,8 +493,10 @@
 (local config
        {:title "Main Menu"
         :items menu-items
-        :keys common-keys
-        :apps apps
+        :keys  common-keys
+        :enter (fn [] (windows.hide-display-numbers))
+        :exit  (fn [] (windows.hide-display-numbers))
+        :apps  apps
         :hyper {:key :F18}})
 
 

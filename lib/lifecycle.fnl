@@ -1,3 +1,12 @@
+;; Copyright (c) 2017-2020 Ag Ibragimov & Contributors
+;;
+;;; Author: Jay Zawrotny <jayzawrotny@gmail.com>
+;;
+;;; URL: https://github.com/agzam/spacehammer
+;;
+;;; License: MIT
+;;
+
 (local {:do-action do-action} (require :lib.bind))
 (local log (hs.logger.new "lifecycle.fnl" "debug"))
 
@@ -25,7 +34,7 @@ Meant for internal use only.
   (let [method (. obj method-name)]
     (match (type method)
       :function (method obj)
-      :string (do-action method)
+      :string (do-action method [obj])
       _       (do
                 (log.wf "Could not call lifecycle method %s on %s"
                         method-name

@@ -1,3 +1,12 @@
+;; Copyright (c) 2017-2020 Ag Ibragimov & Contributors
+;;
+;;; Author: Jay Zawrotny <jayzawrotny@gmail.com>
+;;
+;;; URL: https://github.com/agzam/spacehammer
+;;
+;;; License: MIT
+;;
+
 "
 Displays the menu modals, sub-menus, and application-specific modals if set
 in config.fnl.
@@ -18,6 +27,7 @@ switching menus in one place which is then powered by config.fnl.
         :filter    filter
         :get       get
         :has-some? has-some?
+        :identity  identity
         :join      join
         :last      last
         :map       map
@@ -54,7 +64,6 @@ switching menus in one place which is then powered by config.fnl.
       (when task
         (: task :stop)
         nil))))
-
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Event Dispatchers
@@ -195,6 +204,9 @@ switching menus in one place which is then powered by config.fnl.
                          item.items)))
            (map bind-item))
       (concat [{:key :ESCAPE
+                :action deactivate-modal}
+               {:mods [:ctrl]
+                :key "["
                 :action deactivate-modal}])
       (bind-keys)))
 
@@ -217,7 +229,8 @@ switching menus in one place which is then powered by config.fnl.
   "
   (let [mods (-?>> item.mods
                   (map (fn [m] (or (. mod-chars m) m)))
-                  (join " "))]
+                  (join " ")
+                  (identity))]
     (.. (or mods "")
         (if mods " + " "")
         item.key)))
@@ -272,7 +285,7 @@ switching menus in one place which is then powered by config.fnl.
    :unbind-keys (bind-menu-keys menu.items)
    :history (if history
                 (concat [] history [menu])
-                [])})
+                [menu])})
 
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -404,7 +417,6 @@ switching menus in one place which is then powered by config.fnl.
                                  :menu         menu
                                  :history      history})))))
 
-
 (fn active->timeout
   [state]
   "
@@ -420,7 +432,6 @@ switching menus in one place which is then powered by config.fnl.
   (call-when state.stop-timeout)
   {:stop-timeout (timeout deactivate-modal)})
 
-
 (fn submenu->previous
   [state]
   "
@@ -431,14 +442,16 @@ switching menus in one place which is then powered by config.fnl.
   Dynamically calls another transition depending on history.
   "
   (let [{:config config
-         :history history} state
-        history (slice 1 -1 history)
-        main-menu (= 0 (length history))
-        navigate (if main-menu
-                     idle->active
-                     active->submenu)]
-    (navigate (merge state
-                     {:history history}))))
+         :history history
+         :menu menu} state
+        prev-menu (. history (- (length history) 1))]
+    (if prev-menu
+        (merge state
+               (show-modal-menu (merge state
+                                       {:menu prev-menu
+                                        :prev-menu menu}))
+               {:history (slice 1 -1 history)})
+        (idle->active state))))
 
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -486,7 +499,9 @@ switching menus in one place which is then powered by config.fnl.
    fsm.state :log-state
    (fn log-state
      [state]
-     (log.df "state is now: %s" state.status))))
+     (log.df "state is now: %s" state.status)
+     (when state.history
+       (log.df (hs.inspect (map #(. $1 :title) state.history)))))))
 
 (fn proxy-app-action
   [[action data]]
